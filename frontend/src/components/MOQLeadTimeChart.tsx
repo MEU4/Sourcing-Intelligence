@@ -8,7 +8,6 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    Cell,
     Legend
 } from 'recharts';
 import type { AppData } from '../types';
@@ -74,7 +73,7 @@ export default function MOQLeadTimeChart({ data }: MOQLeadTimeChartProps) {
                     <Tooltip
                         cursor={{ strokeDasharray: '3 3' }}
                         contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                        formatter={(value: any, name: string, props: any) => {
+                        formatter={(value: any, name: any) => {
                             if (name === "Price") return [`€${value}`, name];
                             return [value, name];
                         }}
@@ -95,3 +94,4 @@ export default function MOQLeadTimeChart({ data }: MOQLeadTimeChartProps) {
         </div>
     );
 }
+
