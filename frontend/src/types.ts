@@ -48,6 +48,7 @@ export interface GeminiAnalysisResponse {
 }
 
 export interface AppData {
-    rawBids: RawBid[];
-    roundLotBids: RoundLotBid[];
+    rawBids: any[];
+    roundLotBids: any[];
 }
+
