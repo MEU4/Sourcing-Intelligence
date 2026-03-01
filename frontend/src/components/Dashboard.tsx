@@ -2,7 +2,10 @@ import KPICards from './KPICards';
 import PriceComparisonChart from './PriceComparisonChart';
 import SpendAnalysisTable from './SpendAnalysisTable';
 import TopSavingsChart from './TopSavingsChart';
-import MOQLeadTimeChart from './MOQLeadTimeChart';
+import SupplierSpendChart from './SupplierSpendChart';
+import DDPOpportunitiesPanel from './DDPOpportunitiesPanel';
+import StrategicInsightsPanel from './StrategicInsightsPanel';
+import StrategyExpertChatbox from './StrategyExpertChatbox';
 import type { AppData } from '../types';
 
 interface DashboardProps {
@@ -26,28 +29,48 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
                 </button>
             </div>
 
+            {!data.geminiData && (
+                <div className="mb-8 p-4 bg-amber-50 text-amber-700 rounded-xl border border-amber-200 text-sm text-center">
+                    AI analysis is temporarily unavailable. Charts and tables are still shown from your data.
+                </div>
+            )}
+
+            {/* AI Strategic Insights - first and most prominent */}
+            <StrategicInsightsPanel data={data} />
+
+            {/* KPI Cards */}
             <KPICards data={data} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                <div className="glass-card p-6 min-h-[400px]">
+            {/* Supplier Spend Comparison Chart */}
+            <div className="glass-card p-6 mb-8">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Supplier Spend Comparison: Historical vs 2027</h3>
+                <SupplierSpendChart data={data} />
+            </div>
+
+            {/* Price Comparison + Top Savings side by side */}
+            <div className="grid grid-cols-1 gap-8 mb-8">
+                <div className="glass-card p-6 min-h-[600px]">
                     <h3 className="text-lg font-bold text-slate-800 mb-4">Price Comparison by Supplier</h3>
                     <PriceComparisonChart data={data} />
-                </div>
-                <div className="glass-card p-6 min-h-[400px]">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4">Top Savings by Material</h3>
-                    <TopSavingsChart data={data} />
                 </div>
             </div>
 
             <div className="glass-card p-6 mb-8 min-h-[400px]">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">MOQ vs Price Analysis</h3>
-                <MOQLeadTimeChart data={data} />
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Top Savings by Material</h3>
+                <TopSavingsChart data={data} />
             </div>
 
+            {/* DDP Opportunities */}
+            <DDPOpportunitiesPanel data={data} />
+
+            {/* Spend Analysis Table */}
             <div className="glass-card p-6 mb-8 overflow-x-auto">
                 <h3 className="text-lg font-bold text-slate-800 mb-4">Spend Analysis Overview</h3>
                 <SpendAnalysisTable data={data} />
             </div>
+
+            {/* Strategy Expert Chatbox - floating bottom right */}
+            <StrategyExpertChatbox data={data} />
         </div>
     );
 }
