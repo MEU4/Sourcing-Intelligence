@@ -29,7 +29,7 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
                 </button>
             </div>
 
-            {!data.geminiData && (
+            {!(data as any).geminiData && (
                 <div className="mb-8 p-4 bg-amber-50 text-amber-700 rounded-xl border border-amber-200 text-sm text-center">
                     AI analysis is temporarily unavailable. Charts and tables are still shown from your data.
                 </div>

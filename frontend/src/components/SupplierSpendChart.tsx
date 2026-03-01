@@ -77,10 +77,10 @@ export default function SupplierSpendChart({ data }: SupplierSpendChartProps) {
                     />
                     <Legend wrapperStyle={{ paddingTop: '20px' }} />
                     <Bar dataKey="Historic Spend" fill="#9600FF" radius={[4, 4, 0, 0]} maxBarSize={50}>
-                        <LabelList dataKey="Historic Spend" position="top" formatter={formatValue} style={{ fontSize: 11, fill: '#64748b' }} />
+                        <LabelList dataKey="Historic Spend" position="top" formatter={(v: any) => formatValue(Number(v))} style={{ fontSize: 11, fill: '#64748b' }} />
                     </Bar>
                     <Bar dataKey="2027 Projected" fill="#00C4FF" radius={[4, 4, 0, 0]} maxBarSize={50}>
-                        <LabelList dataKey="2027 Projected" position="top" formatter={formatValue} style={{ fontSize: 11, fill: '#64748b' }} />
+                        <LabelList dataKey="2027 Projected" position="top" formatter={(v: any) => formatValue(Number(v))} style={{ fontSize: 11, fill: '#64748b' }} />
                     </Bar>
                 </BarChart>
             </ResponsiveContainer>

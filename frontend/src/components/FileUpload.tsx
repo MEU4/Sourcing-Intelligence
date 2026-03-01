@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { UploadCloud, FileSpreadsheet, Zap, BarChart2, Lightbulb } from 'lucide-react';
+import { UploadCloud, FileSpreadsheet, BarChart2, Lightbulb } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface FileUploadProps {

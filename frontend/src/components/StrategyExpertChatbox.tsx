@@ -56,7 +56,7 @@ export default function StrategyExpertChatbox({ data }: StrategyExpertChatboxPro
                     dataContext: {
                         rawBids: data.rawBids.slice(0, 50), // send sample for context
                         roundLotBids: data.roundLotBids.slice(0, 20),
-                        geminiData: data.geminiData,
+                        geminiData: (data as any).geminiData,
                     }
                 })
             });

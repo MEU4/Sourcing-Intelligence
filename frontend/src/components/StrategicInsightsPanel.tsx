@@ -16,7 +16,7 @@ interface InsightSection {
 }
 
 export default function StrategicInsightsPanel({ data }: StrategicInsightsPanelProps) {
-    const gemini = data?.geminiData;
+    const gemini = (data as any)?.geminiData;
 
     // Build sections from Gemini data or show placeholders
     const sections: InsightSection[] = [
