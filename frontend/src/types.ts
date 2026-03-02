@@ -52,6 +52,6 @@ export interface AppData {
     roundLotBids: any[];
     geminiData?: any;
 }
-}
+
 
 
