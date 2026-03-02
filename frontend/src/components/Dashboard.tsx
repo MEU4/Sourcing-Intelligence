@@ -35,9 +35,6 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
                 </div>
             )}
 
-            {/* AI Strategic Insights - first and most prominent */}
-            <StrategicInsightsPanel data={data} />
-
             {/* KPI Cards */}
             <KPICards data={data} />
 
@@ -63,11 +60,14 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
             {/* DDP Opportunities */}
             <DDPOpportunitiesPanel data={data} />
 
-            {/* Spend Analysis Table */}
+        {/* Spend Analysis Table */}
             <div className="glass-card p-6 mb-8 overflow-x-auto">
                 <h3 className="text-lg font-bold text-slate-800 mb-4">Spend Analysis Overview</h3>
                 <SpendAnalysisTable data={data} />
             </div>
+
+            {/* AI Strategic Insights - at the bottom */}
+            <StrategicInsightsPanel data={data} />
 
             {/* Strategy Expert Chatbox - floating bottom right */}
             <StrategyExpertChatbox data={data} />
