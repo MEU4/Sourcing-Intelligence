@@ -1,4 +1,5 @@
-import { Sparkles, Zap, TrendingUp, MessageSquare, BarChart2, Compass, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Sparkles, Zap, TrendingUp, MessageSquare, BarChart2, Compass, AlertTriangle, RefreshCw } from 'lucide-react';
 import type { AppData } from '../types';
 
 interface StrategicInsightsPanelProps {
@@ -15,10 +16,93 @@ interface InsightSection {
     content: string[];
 }
 
-export default function StrategicInsightsPanel({ data }: StrategicInsightsPanelProps) {
-    const gemini = (data as any)?.geminiData;
+interface GeminiInsights {
+    quick_wins: string[];
+    savings_opportunities: string[];
+    negotiation_strategies: string[];
+    category_insight: string;
+    strategic_approach: string;
+    risk_assessment: string[];
+}
 
-    // Build sections from Gemini data or show placeholders
+export default function StrategicInsightsPanel({ data }: StrategicInsightsPanelProps) {
+    const [insights, setInsights] = useState<GeminiInsights | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const generateInsights = async () => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            // Build a compact summary of the data to send to the API
+            const suppliers = Array.from(new Set(data.rawBids.map(b => b['Bidder Name']).filter(Boolean)));
+            const lots = Array.from(new Set(data.rawBids.map(b => b['Lot ID'] || b['Article Description']).filter(Boolean)));
+
+            const sampleBids = data.rawBids.slice(0, 30).map(b => ({
+                supplier: b['Bidder Name'],
+                lot: b['Lot ID'] || b['Article Description'],
+                ddpPrice: b['DDP Price (per 1000 Units)'],
+                historicPrice: b['Historic Price'],
+                incoterms: b['Incoterms'],
+                volume: b['Indicative 2027 Demand Volume x 1000 Units'],
+                country: b['Country'],
+                incumbent: b['Incumbent - Status'],
+            }));
+
+            const prompt = `You are a world-class strategic sourcing expert. Analyse this supplier bid data and provide structured insights.
+
+Data summary:
+- Suppliers: ${suppliers.join(', ')}
+- Lots/Materials: ${lots.slice(0, 20).join(', ')}
+- Sample bids: ${JSON.stringify(sampleBids, null, 2)}
+
+Respond ONLY with a valid JSON object (no markdown, no backticks) with this exact structure:
+{
+  "quick_wins": ["insight 1", "insight 2", "insight 3"],
+  "savings_opportunities": ["opportunity 1", "opportunity 2", "opportunity 3"],
+  "negotiation_strategies": ["strategy 1", "strategy 2", "strategy 3"],
+  "category_insight": "A single paragraph about the overall category market dynamics and supplier landscape.",
+  "strategic_approach": "A single paragraph recommending the overall sourcing strategy.",
+  "risk_assessment": ["risk 1", "risk 2", "risk 3"]
+}`;
+
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: 'claude-sonnet-4-20250514',
+                    max_tokens: 1000,
+                    messages: [{ role: 'user', content: prompt }],
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
+            }
+
+            const result = await response.json();
+            const text = result.content?.map((c: any) => c.text || '').join('') || '';
+
+            // Clean and parse JSON
+            const cleaned = text.replace(/```json|```/g, '').trim();
+            const parsed = JSON.parse(cleaned);
+            setInsights(parsed);
+        } catch (err: any) {
+            console.error('AI analysis error:', err);
+            setError('Failed to generate AI analysis. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Auto-generate on mount
+    useEffect(() => {
+        generateInsights();
+    }, [data]);
+
     const sections: InsightSection[] = [
         {
             title: 'Quick Wins',
@@ -27,7 +111,7 @@ export default function StrategicInsightsPanel({ data }: StrategicInsightsPanelP
             bgColor: 'bg-green-50/60',
             iconBg: 'bg-green-100',
             iconColor: 'text-green-700',
-            content: gemini?.quick_wins || gemini?.strategic_insights?.slice(0, 2) || ['Upload a file and run AI analysis to see quick wins.'],
+            content: insights?.quick_wins || ['Analysing your data for quick wins...'],
         },
         {
             title: 'Savings Opportunities',
@@ -36,7 +120,7 @@ export default function StrategicInsightsPanel({ data }: StrategicInsightsPanelP
             bgColor: 'bg-sky-50/60',
             iconBg: 'bg-sky-100',
             iconColor: 'text-sky-700',
-            content: gemini?.savings_opportunities || gemini?.strategic_insights?.slice(2, 4) || ['AI will identify ranked savings opportunities here.'],
+            content: insights?.savings_opportunities || ['Identifying ranked savings opportunities...'],
         },
         {
             title: 'Negotiation Strategies',
@@ -45,7 +129,7 @@ export default function StrategicInsightsPanel({ data }: StrategicInsightsPanelP
             bgColor: 'bg-red-50/60',
             iconBg: 'bg-red-100',
             iconColor: 'text-red-700',
-            content: gemini?.negotiation_strategies || gemini?.strategic_insights?.slice(4, 6) || ['Supplier-specific negotiation tactics will appear here.'],
+            content: insights?.negotiation_strategies || ['Generating supplier-specific negotiation tactics...'],
         },
         {
             title: 'Strategic Category Insight',
@@ -54,7 +138,7 @@ export default function StrategicInsightsPanel({ data }: StrategicInsightsPanelP
             bgColor: 'bg-purple-50/60',
             iconBg: 'bg-purple-100',
             iconColor: 'text-purple-700',
-            content: gemini?.category_insight ? [gemini.category_insight] : gemini?.strategic_insights?.slice(6, 8) || ['Market and supplier landscape analysis will appear here.'],
+            content: insights?.category_insight ? [insights.category_insight] : ['Analysing market and supplier landscape...'],
         },
         {
             title: 'Strategic Approach',
@@ -63,7 +147,7 @@ export default function StrategicInsightsPanel({ data }: StrategicInsightsPanelP
             bgColor: 'bg-pink-50/60',
             iconBg: 'bg-pink-100',
             iconColor: 'text-pink-700',
-            content: gemini?.strategic_approach ? [gemini.strategic_approach] : gemini?.strategic_insights?.slice(8, 10) || ['Recommended sourcing strategy will be generated here.'],
+            content: insights?.strategic_approach ? [insights.strategic_approach] : ['Generating recommended sourcing strategy...'],
         },
         {
             title: 'Risk Assessment',
@@ -72,47 +156,71 @@ export default function StrategicInsightsPanel({ data }: StrategicInsightsPanelP
             bgColor: 'bg-amber-50/60',
             iconBg: 'bg-amber-100',
             iconColor: 'text-amber-700',
-            content: gemini?.risk_assessment || gemini?.strategic_insights?.slice(10) || ['Risk ratings per recommendation will appear here.'],
+            content: insights?.risk_assessment || ['Evaluating risk ratings per recommendation...'],
         },
     ];
 
     return (
         <div className="glass-card p-8 mb-8 border-t-4 border-t-[#00C4FF]">
             {/* Header */}
-            <div className="flex items-center gap-3 mb-8">
-                <div className="bg-[#00C4FF] text-white p-2.5 rounded-xl shadow-md">
-                    <Sparkles size={24} />
+            <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                    <div className="bg-[#00C4FF] text-white p-2.5 rounded-xl shadow-md">
+                        <Sparkles size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-900">Strategic Sourcing Intelligence Report</h3>
+                        <p className="text-sm text-slate-500">AI-generated analysis powered by Claude</p>
+                    </div>
                 </div>
-                <div>
-                    <h3 className="text-xl font-bold text-slate-900">Strategic Sourcing Intelligence Report</h3>
-                    <p className="text-sm text-slate-500">AI-generated analysis powered by Gemini</p>
-                </div>
+                <button
+                    onClick={generateInsights}
+                    disabled={isLoading}
+                    className="flex items-center gap-2 text-sm font-medium bg-[#00C4FF]/10 text-[#00C4FF] hover:bg-[#00C4FF]/20 disabled:opacity-50 px-4 py-2 rounded-lg transition-colors"
+                >
+                    <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+                    {isLoading ? 'Analysing...' : 'Regenerate'}
+                </button>
             </div>
 
-            {/* 6 sections in 2-column grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {sections.map((section, idx) => (
-                    <div
-                        key={idx}
-                        className={`rounded-xl border-l-4 ${section.borderColor} ${section.bgColor} p-5 shadow-sm hover:shadow-md transition-all`}
-                    >
-                        <div className="flex items-center gap-2 mb-3">
-                            <div className={`p-1.5 rounded-lg ${section.iconBg} ${section.iconColor}`}>
-                                {section.icon}
+            {isLoading && (
+                <div className="flex flex-col items-center justify-center py-12">
+                    <div className="w-12 h-12 border-4 border-[#00C4FF]/30 border-t-[#00C4FF] rounded-full animate-spin mb-4" />
+                    <p className="text-slate-500 text-sm">Claude AI is analysing your sourcing data...</p>
+                </div>
+            )}
+
+            {error && !isLoading && (
+                <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm text-center mb-6">
+                    {error}
+                </div>
+            )}
+
+            {!isLoading && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {sections.map((section, idx) => (
+                        <div
+                            key={idx}
+                            className={`rounded-xl border-l-4 ${section.borderColor} ${section.bgColor} p-5 shadow-sm hover:shadow-md transition-all`}
+                        >
+                            <div className="flex items-center gap-2 mb-3">
+                                <div className={`p-1.5 rounded-lg ${section.iconBg} ${section.iconColor}`}>
+                                    {section.icon}
+                                </div>
+                                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wide">{section.title}</h4>
                             </div>
-                            <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wide">{section.title}</h4>
+                            <ul className="space-y-2">
+                                {section.content.map((item, i) => (
+                                    <li key={i} className="text-sm text-slate-700 leading-relaxed flex items-start gap-2">
+                                        <span className="mt-1.5 flex-shrink-0 w-1.5 h-1.5 rounded-full bg-slate-400" />
+                                        {item}
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
-                        <ul className="space-y-2">
-                            {section.content.map((item, i) => (
-                                <li key={i} className="text-sm text-slate-700 leading-relaxed flex items-start gap-2">
-                                    <span className="mt-1.5 flex-shrink-0 w-1.5 h-1.5 rounded-full bg-slate-400" />
-                                    {item}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

@@ -1,5 +1,4 @@
 import KPICards from './KPICards';
-import PriceComparisonChart from './PriceComparisonChart';
 import SpendAnalysisTable from './SpendAnalysisTable';
 import TopSavingsChart from './TopSavingsChart';
 import SupplierSpendChart from './SupplierSpendChart';
@@ -29,12 +28,6 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
                 </button>
             </div>
 
-            {!(data as any).geminiData && (
-                <div className="mb-8 p-4 bg-amber-50 text-amber-700 rounded-xl border border-amber-200 text-sm text-center">
-                    AI analysis is temporarily unavailable. Charts and tables are still shown from your data.
-                </div>
-            )}
-
             {/* KPI Cards */}
             <KPICards data={data} />
 
@@ -44,30 +37,22 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
                 <SupplierSpendChart data={data} />
             </div>
 
-            {/* Price Comparison + Top Savings side by side */}
-            <div className="grid grid-cols-1 gap-8 mb-8">
-                <div className="glass-card p-6 min-h-[600px]">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4">Price Comparison by Supplier</h3>
-                    <PriceComparisonChart data={data} />
-                </div>
-            </div>
-
             <div className="glass-card p-6 mb-8 min-h-[400px]">
                 <h3 className="text-lg font-bold text-slate-800 mb-4">Top Savings by Material</h3>
                 <TopSavingsChart data={data} />
             </div>
 
-            {/* DDP Opportunities */}
+            {/* AI Strategic Insights - at the bottom */}
+            <StrategicInsightsPanel data={data} />
+
+            {/* DDP Opportunities - between AI report and Spend Analysis */}
             <DDPOpportunitiesPanel data={data} />
 
-        {/* Spend Analysis Table */}
+            {/* Spend Analysis Table */}
             <div className="glass-card p-6 mb-8 overflow-x-auto">
                 <h3 className="text-lg font-bold text-slate-800 mb-4">Spend Analysis Overview</h3>
                 <SpendAnalysisTable data={data} />
             </div>
-
-            {/* AI Strategic Insights - at the bottom */}
-            <StrategicInsightsPanel data={data} />
 
             {/* Strategy Expert Chatbox - floating bottom right */}
             <StrategyExpertChatbox data={data} />
