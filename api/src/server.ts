@@ -7,7 +7,7 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 // Your Google Cloud Project ID — update this
-const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 'your-project-id';
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 'gen-lang-client-0596037703';
 const LOCATION = 'us-central1';
 const MODEL = 'gemini-1.5-flash';
 
@@ -163,3 +163,4 @@ app.get('*', (req, res) => {
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
+
