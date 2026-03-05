@@ -1,20 +1,27 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import { GoogleGenAI } from '@google/genai';
-
-dotenv.config();
+import path from 'path';
+import { VertexAI } from '@google-cloud/vertexai';
 
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Your Google Cloud Project ID — update this
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 'your-project-id';
+const LOCATION = 'us-central1';
+const MODEL = 'gemini-1.5-flash';
+
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// Initialize Gemini Client
-// We ensure the API key is passed correctly, or picked up from GEMINI_API_KEY env var automatically
-const ai = new GoogleGenAI({});
+// Serve React frontend static files
+app.use(express.static(path.join(__dirname, '../../frontend/dist')));
 
+// Initialize Vertex AI — uses service account automatically in Cloud Run
+const vertexAI = new VertexAI({ project: PROJECT_ID, location: LOCATION });
+const model = vertexAI.getGenerativeModel({ model: MODEL });
+
+// ── Analyse endpoint ──────────────────────────────────────────────────────────
 app.post('/api/analyze', async (req, res) => {
     try {
         const { rawBids, roundLotBids } = req.body;
@@ -25,32 +32,40 @@ app.post('/api/analyze', async (req, res) => {
 
         const promptText = `
 You are a strategic sourcing expert. Analyse the following bidding data from a metal cap eRFQ tender and provide:
-1. A table of negotiation opportunities with recommended actions and priority level (High/Medium/Low)
-2. 5-6 strategic insights highlighting savings opportunities, supplier risks, and quick wins
-3. A summary of DDP (Delivered Duty Paid) opportunities and their advantage over DAP bids
-4. Top materials by savings potential
+1. A list of quick wins — immediate actions achievable in under 30 days with estimated EUR savings
+2. A ranked list of savings opportunities with EUR values and % impact
+3. Specific negotiation tactics per supplier based on their bid position
+4. Market and supplier landscape analysis including concentration risk
+5. Overall recommended sourcing strategy based on the full data
+6. Risk assessment — rate each recommendation Low/Medium/High risk with justification
+7. A table of negotiation opportunities with recommended actions and priority level
+8. A summary of DDP opportunities and their advantage over DAP bids
 
-Return your response as structured JSON EXACTLY matching this schema, without markdown formatting or code blocks:
+Return ONLY valid JSON matching this exact schema with no markdown, no code blocks, no extra text:
 {
+  "quick_wins": ["string"],
+  "savings_opportunities": ["string"],
+  "negotiation_strategies": ["string"],
+  "category_insight": "string",
+  "strategic_approach": "string",
+  "risk_assessment": ["string"],
   "negotiation_opportunities": [
     {
       "material_lot": "string",
       "current_supplier": "string",
       "best_alternative": "string",
-      "price_gap_eur": "number or string",
-      "price_gap_percentage": "number or string",
+      "price_gap_eur": "number",
+      "price_gap_percentage": "number",
       "recommended_action": "string",
       "priority": "High | Medium | Low"
     }
   ],
-  "strategic_insights": [
-    "string"
-  ],
+  "strategic_insights": ["string"],
   "ddp_summary": "string",
   "top_savings_materials": [
     {
       "material_name": "string",
-      "savings_eur": "number or string",
+      "savings_eur": "number",
       "savings_percentage": "number",
       "tier": "green | amber | red"
     }
@@ -58,36 +73,93 @@ Return your response as structured JSON EXACTLY matching this schema, without ma
 }
 
 Bidding data (Raw Bids):
-${JSON.stringify(rawBids.slice(0, 50))} // Sending a sample if it's too large, but assuming manageable size for model context.
+${JSON.stringify(rawBids.slice(0, 50))}
+
+Round Lot Bids:
+${JSON.stringify(roundLotBids.slice(0, 20))}
 `;
 
-        // Attempting to call Gemini 1.5 Flash
-        // We request JSON format output
-        const response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash',
-            contents: promptText,
-            config: {
-                responseMimeType: "application/json",
-            }
+        const result = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: promptText }] }],
+            generationConfig: {
+                responseMimeType: 'application/json',
+                temperature: 0.2,
+            },
         });
 
-        const responseText = response.text || "{}";
+        const responseText = result.response?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
 
         let parsedResponse;
         try {
-            parsedResponse = JSON.parse(responseText);
+            // Strip any accidental markdown fences
+            const clean = responseText.replace(/```json|```/g, '').trim();
+            parsedResponse = JSON.parse(clean);
         } catch (parseError) {
-            console.error("Failed to parse Gemini JSON:", responseText);
+            console.error('Failed to parse Vertex AI JSON response:', responseText);
             return res.status(500).json({ error: 'Failed to parse AI response as JSON' });
         }
 
         res.json(parsedResponse);
+
     } catch (error: any) {
         console.error('Error in /api/analyze:', error);
         res.status(500).json({ error: 'Internal Server Error', details: error.message });
     }
 });
 
+// ── Chat endpoint ─────────────────────────────────────────────────────────────
+app.post('/api/chat', async (req, res) => {
+    try {
+        const { messages, dataContext } = req.body;
+
+        if (!messages || messages.length === 0) {
+            return res.status(400).json({ error: 'No messages provided' });
+        }
+
+        const systemContext = `You are a strategic sourcing expert assistant called "Strategy Expert". 
+You are analysing a metal cap eRFQ tender with the following data context:
+- ${dataContext?.rawBids?.length || 0} supplier bids across multiple lots
+- Suppliers: ${[...new Set(dataContext?.rawBids?.map((b: any) => b['Bidder Name']).filter(Boolean))].join(', ')}
+- AI Analysis available: ${dataContext?.geminiData ? 'Yes' : 'No'}
+
+Bid data sample: ${JSON.stringify(dataContext?.rawBids?.slice(0, 20) || [])}
+
+Answer questions concisely and strategically. Focus on actionable procurement insights.`;
+
+        // Build conversation history for Vertex AI
+        const contents = [
+            { role: 'user', parts: [{ text: systemContext + '\n\nUser question: ' + messages[messages.length - 1].content }] }
+        ];
+
+        // Add prior conversation turns if they exist
+        if (messages.length > 1) {
+            const history = messages.slice(0, -1).map((m: any) => ({
+                role: m.role === 'user' ? 'user' : 'model',
+                parts: [{ text: m.content }]
+            }));
+            contents.unshift(...history);
+        }
+
+        const result = await model.generateContent({
+            contents,
+            generationConfig: { temperature: 0.4 },
+        });
+
+        const reply = result.response?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not generate a response.';
+
+        res.json({ reply });
+
+    } catch (error: any) {
+        console.error('Error in /api/chat:', error);
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+});
+
+// ── Serve React app for all other routes ─────────────────────────────────────
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
+});
+
 app.listen(port, () => {
-    console.log(`API server running on http://localhost:${port}`);
+    console.log(`Server running on port ${port}`);
 });
