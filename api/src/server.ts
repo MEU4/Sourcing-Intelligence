@@ -159,20 +159,7 @@ Answer questions concisely and strategically. Focus on actionable procurement in
 app.get('/{*path}', (req, res) => {
     res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
 });
-```
-
----
-
-## Commit → Cloud Build Triggers Automatically
-
-Once committed Cloud Build will rebuild and redeploy. Should fix the startup error immediately.
-
-Also good news — I can see in the logs:
-```
-GET 200 https://sourcing-intelligence-355186906151.us-central1.run.app/
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
-
-
