@@ -66,18 +66,16 @@ Answer questions concisely and with expert-level insight. Focus on actionable re
         setIsLoading(true);
 
         try {
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    model: 'claude-sonnet-4-20250514',
-                    max_tokens: 1000,
-                    system: buildSystemPrompt(),
-                    messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
-                }),
-            });
+            const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+        messages: messages,
+        dataContext: data,
+    }),
+});
 
             if (response.ok) {
                 const result = await response.json();
