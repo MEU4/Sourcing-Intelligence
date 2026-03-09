@@ -33,7 +33,7 @@ export default function StrategyExpertChatbox({ data }: StrategyExpertChatboxPro
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    const buildSystemPrompt = () => {
+    const _buildSystemPrompt = () => {
         const suppliers = Array.from(new Set(data.rawBids.map(b => b['Bidder Name']).filter(Boolean)));
         const sampleBids = data.rawBids.slice(0, 30).map(b => ({
             supplier: b['Bidder Name'],
