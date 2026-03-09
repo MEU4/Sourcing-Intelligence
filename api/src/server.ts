@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
 
@@ -15,12 +15,12 @@ app.use(express.json({ limit: '50mb' }));
 // Serve React frontend static files
 app.use(express.static(path.join(__dirname, '../../frontend/dist')));
 
-// ── Health check — Cloud Run needs this to confirm startup ────────────────────
-app.get('/health', (req, res) => {
+// ── Health check ──────────────────────────────────────────────────────────────
+app.get('/health', (req: Request, res: Response) => {
     res.status(200).json({ status: 'ok' });
 });
 
-// ── Lazy load Vertex AI to avoid startup crash ────────────────────────────────
+// ── Lazy load Vertex AI ───────────────────────────────────────────────────────
 async function getModel() {
     const { VertexAI } = await import('@google-cloud/vertexai');
     const vertexAI = new VertexAI({ project: PROJECT_ID, location: LOCATION });
@@ -28,12 +28,13 @@ async function getModel() {
 }
 
 // ── Analyse endpoint ──────────────────────────────────────────────────────────
-app.post('/api/analyze', async (req, res) => {
+app.post('/api/analyze', async (req: Request, res: Response) => {
     try {
         const { rawBids, roundLotBids } = req.body;
 
         if (!rawBids || !roundLotBids) {
-            return res.status(400).json({ error: 'Missing bid data in request payload' });
+            res.status(400).json({ error: 'Missing bid data in request payload' });
+            return;
         }
 
         const promptText = `
@@ -79,10 +80,10 @@ Return ONLY valid JSON matching this exact schema with no markdown, no code bloc
 }
 
 Bidding data (Raw Bids):
-${JSON.stringify(req.body.rawBids.slice(0, 50))}
+${JSON.stringify(rawBids.slice(0, 50))}
 
 Round Lot Bids:
-${JSON.stringify(req.body.roundLotBids.slice(0, 20))}
+${JSON.stringify(roundLotBids.slice(0, 20))}
 `;
 
         const model = await getModel();
@@ -102,7 +103,8 @@ ${JSON.stringify(req.body.roundLotBids.slice(0, 20))}
             parsedResponse = JSON.parse(clean);
         } catch (parseError) {
             console.error('Failed to parse Vertex AI JSON:', responseText);
-            return res.status(500).json({ error: 'Failed to parse AI response as JSON' });
+            res.status(500).json({ error: 'Failed to parse AI response as JSON' });
+            return;
         }
 
         res.json(parsedResponse);
@@ -114,12 +116,13 @@ ${JSON.stringify(req.body.roundLotBids.slice(0, 20))}
 });
 
 // ── Chat endpoint ─────────────────────────────────────────────────────────────
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', async (req: Request, res: Response) => {
     try {
         const { messages, dataContext } = req.body;
 
         if (!messages || messages.length === 0) {
-            return res.status(400).json({ error: 'No messages provided' });
+            res.status(400).json({ error: 'No messages provided' });
+            return;
         }
 
         const systemContext = `You are a strategic sourcing expert assistant called "Strategy Expert". 
@@ -155,11 +158,12 @@ Answer questions concisely and strategically. Focus on actionable procurement in
 });
 
 // ── Serve React app for all other routes ─────────────────────────────────────
-app.get('/{*path}', (req, res) => {
+// Using middleware instead of wildcard route (Express v5 compatible)
+app.use((req: Request, res: Response) => {
     res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
 });
 
-// Start server immediately — don't wait for Vertex AI
+// Start server
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
     console.log(`Project ID: ${PROJECT_ID}`);
