@@ -1,13 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import { VertexAI } from '@google-cloud/vertexai';
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 8080;
 
-// Your Google Cloud Project ID — update this
-const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 'gen-lang-client-0596037703';
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || '';
 const LOCATION = 'us-central1';
 const MODEL = 'gemini-1.5-flash';
 
@@ -17,9 +15,17 @@ app.use(express.json({ limit: '50mb' }));
 // Serve React frontend static files
 app.use(express.static(path.join(__dirname, '../../frontend/dist')));
 
-// Initialize Vertex AI — uses service account automatically in Cloud Run
-const vertexAI = new VertexAI({ project: PROJECT_ID, location: LOCATION });
-const model = vertexAI.getGenerativeModel({ model: MODEL });
+// ── Health check — Cloud Run needs this to confirm startup ────────────────────
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
+
+// ── Lazy load Vertex AI to avoid startup crash ────────────────────────────────
+async function getModel() {
+    const { VertexAI } = await import('@google-cloud/vertexai');
+    const vertexAI = new VertexAI({ project: PROJECT_ID, location: LOCATION });
+    return vertexAI.getGenerativeModel({ model: MODEL });
+}
 
 // ── Analyse endpoint ──────────────────────────────────────────────────────────
 app.post('/api/analyze', async (req, res) => {
@@ -73,12 +79,13 @@ Return ONLY valid JSON matching this exact schema with no markdown, no code bloc
 }
 
 Bidding data (Raw Bids):
-${JSON.stringify(rawBids.slice(0, 50))}
+${JSON.stringify(req.body.rawBids.slice(0, 50))}
 
 Round Lot Bids:
-${JSON.stringify(roundLotBids.slice(0, 20))}
+${JSON.stringify(req.body.roundLotBids.slice(0, 20))}
 `;
 
+        const model = await getModel();
         const result = await model.generateContent({
             contents: [{ role: 'user', parts: [{ text: promptText }] }],
             generationConfig: {
@@ -91,11 +98,10 @@ ${JSON.stringify(roundLotBids.slice(0, 20))}
 
         let parsedResponse;
         try {
-            // Strip any accidental markdown fences
             const clean = responseText.replace(/```json|```/g, '').trim();
             parsedResponse = JSON.parse(clean);
         } catch (parseError) {
-            console.error('Failed to parse Vertex AI JSON response:', responseText);
+            console.error('Failed to parse Vertex AI JSON:', responseText);
             return res.status(500).json({ error: 'Failed to parse AI response as JSON' });
         }
 
@@ -119,27 +125,20 @@ app.post('/api/chat', async (req, res) => {
         const systemContext = `You are a strategic sourcing expert assistant called "Strategy Expert". 
 You are analysing a metal cap eRFQ tender with the following data context:
 - ${dataContext?.rawBids?.length || 0} supplier bids across multiple lots
-- Suppliers: ${[...new Set(dataContext?.rawBids?.map((b: any) => b['Bidder Name']).filter(Boolean))].join(', ')}
-- AI Analysis available: ${dataContext?.geminiData ? 'Yes' : 'No'}
+- Suppliers: ${[...new Set((dataContext?.rawBids || []).map((b: any) => b['Bidder Name']).filter(Boolean))].join(', ')}
 
-Bid data sample: ${JSON.stringify(dataContext?.rawBids?.slice(0, 20) || [])}
+Bid data sample: ${JSON.stringify((dataContext?.rawBids || []).slice(0, 20))}
 
 Answer questions concisely and strategically. Focus on actionable procurement insights.`;
 
-        // Build conversation history for Vertex AI
         const contents = [
-            { role: 'user', parts: [{ text: systemContext + '\n\nUser question: ' + messages[messages.length - 1].content }] }
+            {
+                role: 'user',
+                parts: [{ text: systemContext + '\n\nUser question: ' + messages[messages.length - 1].content }]
+            }
         ];
 
-        // Add prior conversation turns if they exist
-        if (messages.length > 1) {
-            const history = messages.slice(0, -1).map((m: any) => ({
-                role: m.role === 'user' ? 'user' : 'model',
-                parts: [{ text: m.content }]
-            }));
-            contents.unshift(...history);
-        }
-
+        const model = await getModel();
         const result = await model.generateContent({
             contents,
             generationConfig: { temperature: 0.4 },
@@ -160,6 +159,9 @@ app.get('/{*path}', (req, res) => {
     res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
 });
 
+// Start server immediately — don't wait for Vertex AI
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
+    console.log(`Project ID: ${PROJECT_ID}`);
+    console.log(`Environment: ${process.env.NODE_ENV}`);
 });
