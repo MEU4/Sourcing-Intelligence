@@ -50,7 +50,7 @@ export default function StrategicInsightsPanel({ data }: StrategicInsightsPanelP
                 incumbent: b['Incumbent - Status'],
             }));
 
-            const prompt = `You are a world-class strategic sourcing expert. Analyse this supplier bid data and provide structured insights.
+            const _prompt = `You are a world-class strategic sourcing expert. Analyse this supplier bid data and provide structured insights.
 
 Data summary:
 - Suppliers: ${suppliers.join(', ')}
