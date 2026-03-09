@@ -13,7 +13,7 @@ COPY api/package*.json ./
 COPY api/tsconfig.json ./
 RUN npm install
 COPY api/src ./src
-RUN npm run build
+RUN rm -rf dist && npm run build
 # Show compiled output for debugging
 RUN find dist -name "*.js" | head -20
 
