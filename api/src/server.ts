@@ -17,7 +17,8 @@ app.use(express.static(path.join(__dirname, '../../../frontend/dist')));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req: Request, res: Response) => {
-    res.status(200).json({ status: 'ok' });
+    const fp = path.join(__dirname, '../../../frontend/dist');
+    res.status(200).json({ status: 'ok', frontendPath: fp, dirname: __dirname });
 });
 
 // ── Lazy load Vertex AI ───────────────────────────────────────────────────────
@@ -160,7 +161,7 @@ Answer questions concisely and strategically. Focus on actionable procurement in
 // ── Serve React app for all other routes ─────────────────────────────────────
 // Using middleware instead of wildcard route (Express v5 compatible)
 app.use((req: Request, res: Response) => {
-    res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
+    res.sendFile(path.join(__dirname, '../../../frontend/dist/index.html'));
 });
 
 // Start server
@@ -169,4 +170,5 @@ app.listen(port, () => {
     console.log(`Project ID: ${PROJECT_ID}`);
     console.log(`Environment: ${process.env.NODE_ENV}`);
 });
+
 
