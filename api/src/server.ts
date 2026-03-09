@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
 // Serve React frontend static files
-app.use(express.static(path.join(__dirname, '../../frontend/dist')));
+app.use(express.static(path.join(__dirname, '../../../frontend/dist')));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req: Request, res: Response) => {
@@ -169,3 +169,4 @@ app.listen(port, () => {
     console.log(`Project ID: ${PROJECT_ID}`);
     console.log(`Environment: ${process.env.NODE_ENV}`);
 });
+
