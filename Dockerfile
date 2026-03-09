@@ -13,20 +13,16 @@ COPY api/package*.json ./
 COPY api/tsconfig.json ./
 RUN npm install
 COPY api/src ./src
-RUN rm -rf dist && npm run build
-# Show compiled output for debugging
-RUN find dist -name "*.js" | head -20
+# Force clean build - no cache
+RUN rm -rf dist && npm run build && echo "=== COMPILED FILES ===" && find dist -name "*.js"
 
 # ── Stage 3: Production image ─────────────────────────────────────────────────
 FROM node:20-slim
 WORKDIR /app
 
-# Copy built backend
 COPY --from=backend-builder /app/api/dist ./api/dist
 COPY --from=backend-builder /app/api/node_modules ./api/node_modules
 COPY --from=backend-builder /app/api/package.json ./api/package.json
-
-# Copy built frontend
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 ENV NODE_ENV=production
@@ -34,5 +30,4 @@ ENV PORT=8080
 
 EXPOSE 8080
 
-# Try both possible paths
-CMD ["sh", "-c", "node api/dist/src/server.js 2>/dev/null || node api/dist/server.js"]
+CMD ["node", "api/dist/src/server.js"]
